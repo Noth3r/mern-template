@@ -1,0 +1,14 @@
+import Link from '@components/_shared/Link';
+
+const Page404 = (): JSX.Element => {
+	return (
+		<div className="flex flex-col justify-center items-center fixed full inset-0">
+			<h1 className="mb-4">404 | Not Found</h1>
+			<Link href="/" className="px-4 py-2 text-black bg-white">
+				BACK HOME
+			</Link>
+		</div>
+	);
+};
+
+export default Page404;
