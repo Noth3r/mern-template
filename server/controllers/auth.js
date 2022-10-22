@@ -1,6 +1,8 @@
 const bcrypt = require('bcryptjs');
 const { createAccessToken, createRefreshToken, verifyJwt } = require('../helpers/jwt');
 const User = require('../models/user');
+const crypto = require('crypto');
+const sendEmail = require('../helpers/sendEmail');
 
 /* Sign in */
 const signin = async (req, res) => {
@@ -81,6 +83,104 @@ const getProfile = async (req, res) => {
 	});
 };
 
+const forgotPassword = async (req, res) => {
+	const { email } = req.body;
+
+	try {
+		let user = await User.findOne({ email });
+
+		if (!user) {
+			return res.status(404).json({
+				message: 'Email could not be send',
+			});
+		}
+
+		const resetToken = user.getResetPasswordToken();
+
+		await user.save();
+
+		const resetUrl = `${
+			process.env.SITE_URL || 'http://localhost:3000'
+		}/resetpassword/${resetToken}`;
+
+		const message = `
+		<h1>You have requested a password reset</h1>
+		<p>Please go to this link to reset your password</p>
+		<a href="${resetUrl}" clicktracking=off>${resetUrl}</a>
+	`;
+		try {
+			await sendEmail({
+				to: user.email,
+				subject: 'Password Reset Request',
+				html: message,
+			});
+
+			res.status(200).json({ success: true, data: 'Email Sent' });
+		} catch (error) {
+			user.resetPasswordToken = undefined;
+			user.resetPasswordExpire = undefined;
+
+			await user.save();
+
+			console.log(error);
+
+			return res.status(500).json({ message: 'Email could not be send' });
+		}
+	} catch (err) {
+		return res.status(500).json({ message: err.message });
+	}
+};
+
+const checkResetTokenPassword = async (req, res) => {
+	const resetPasswordToken = crypto
+		.createHash('sha256')
+		.update(req.params.resetToken)
+		.digest('hex');
+
+	try {
+		const user = await User.findOne({
+			resetPasswordToken,
+			resetPasswordExpire: { $gt: Date.now() },
+		});
+
+		if (!user) {
+			return res.status(400).json({ message: 'Invalid Reset Token' });
+		}
+
+		return res.status(200).json({ message: 'Token valid' });
+	} catch (err) {
+		return res.status(200).json({ message: 'Invalid Reset Token' });
+	}
+};
+
+const resetPassword = async (req, res) => {
+	const resetPasswordToken = crypto
+		.createHash('sha256')
+		.update(req.params.resetToken)
+		.digest('hex');
+
+	try {
+		const user = await User.findOne({
+			resetPasswordToken,
+			resetPasswordExpire: { $gt: Date.now() },
+		});
+
+		if (!user) {
+			return res.status(400).json({ message: 'Invalid Reset Token' });
+		}
+
+		user.password = bcrypt.hashSync(req.body.password, 10);
+		user.resetPasswordToken = undefined;
+		user.resetPasswordExpire = undefined;
+
+		await user.save();
+
+		res.status(201).json({ success: true, data: 'Password Reset Success' });
+	} catch (err) {
+		return res.status(200).json({ message: 'Invalid Reset Token' });
+	}
+};
+
 const refreshToken = async (req, res) => {
 	const token = req.cookies.refreshToken;
 	if (!token) return res.status(401).json({ message: 'No token' });
@@ -116,4 +216,7 @@ module.exports = {
 	sendToken,
 	refreshToken,
 	signout,
+	forgotPassword,
+	checkResetTokenPassword,
+	resetPassword,
 };

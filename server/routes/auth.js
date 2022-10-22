@@ -7,6 +7,9 @@ router.post('/signin', UserController.signin);
 router.get('/', verifyToken, UserController.getProfile);
 router.get('/refresh', UserController.refreshToken);
 router.post('/signout', UserController.signout);
+router.post('/forgotpassword', UserController.forgotPassword);
+router.get('/resetpassword/:resetToken', UserController.checkResetTokenPassword);
+router.put('/resetpassword/:resetToken', UserController.resetPassword);
 
 /* Delete if you already have private routes */
 router.get('/private', verifyToken, (req, res) => {
