@@ -22,7 +22,7 @@ export const authApi = createApi({
 			},
 		}),
 		refresh: builder.query({
-			query: () => ({ url: 'private' }),
+			query: () => ({ url: 'refresh' }),
 		}),
 		logout: builder.mutation({
 			query: () => ({ url: 'signout', method: 'POST' }),
